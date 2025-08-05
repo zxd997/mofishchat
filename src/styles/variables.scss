@@ -1,0 +1,41 @@
+// 主题色彩
+$primary-color: #42a5f5;
+$secondary-color: #ffa726;
+$accent-color: #ff6b6b;
+$success-color: #4caf50;
+$warning-color: #ff9800;
+$info-color: #2196f3;
+
+// 渐变背景
+$gradient-primary: linear-gradient(135deg, #e3f2fd 0%, #fff3e0 100%);
+$gradient-sidebar: linear-gradient(180deg, #42a5f5, #1976d2);
+$gradient-topbar: linear-gradient(90deg, #ffa726, #ffcc02);
+$gradient-message: linear-gradient(45deg, #42a5f5, #64b5f6);
+$gradient-robot: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+// 尺寸
+$sidebar-width: 200px;
+$border-radius: 15px;
+$border-radius-large: 20px;
+$border-radius-small: 10px;
+
+// 阴影
+$shadow-light: 0 2px 8px rgba(0,0,0,0.1);
+$shadow-medium: 0 8px 32px rgba(0,0,0,0.1);
+$shadow-heavy: 0 20px 60px rgba(0,0,0,0.3);
+
+// 字体
+$font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+$font-size-small: 0.9em;
+$font-size-base: 1em;
+$font-size-large: 1.2em;
+$font-size-xl: 1.5em;
+$font-size-xxl: 2.5em;
+
+// 间距
+$spacing-xs: 5px;
+$spacing-sm: 10px;
+$spacing-md: 15px;
+$spacing-lg: 20px;
+$spacing-xl: 30px;
+$spacing-xxl: 40px; 

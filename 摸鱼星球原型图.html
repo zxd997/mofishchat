@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摸鱼星球聊天室 - 原型图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #fff3e0 100%);
+            color: #333;
+            overflow-x: auto;
+        }
+
+        .prototype-container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .prototype-title {
+            text-align: center;
+            font-size: 2.5em;
+            color: #1976d2;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .prototype-section {
+            margin-bottom: 50px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: linear-gradient(45deg, #42a5f5, #ffa726);
+            color: white;
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        /* 主界面样式 */
+        .main-interface {
+            display: flex;
+            height: 600px;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #42a5f5, #1976d2);
+            color: white;
+            padding: 20px 0;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-item .icon {
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            background: linear-gradient(90deg, #ffa726, #ffcc02);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+        }
+
+        .topic-banner {
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border-radius: 20px;
+            color: #333;
+            margin-left: 20px;
+        }
+
+        .topic-button {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .chat-area {
+            flex: 1;
+            padding: 20px;
+            background: #fafafa;
+            overflow-y: auto;
+        }
+
+        .message {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 70%;
+        }
+
+        .message.mine {
+            margin-left: auto;
+            background: linear-gradient(45deg, #42a5f5, #64b5f6);
+            color: white;
+        }
+
+        .message-header {
+            font-size: 0.9em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .input-area {
+            background: white;
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-box {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 1em;
+            outline: none;
+        }
+
+        .input-box:focus {
+            border-color: #42a5f5;
+        }
+
+        .send-button, .quick-button {
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .quick-button {
+            background: linear-gradient(45deg, #ffa726, #ff9800);
+            font-size: 0.9em;
+            padding: 8px 15px;
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 400px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: #1976d2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .modal-button.primary {
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+            color: white;
+        }
+
+        .modal-button.secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        /* 打卡面板样式 */
+        .checkin-panel {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 3em;
+            color: #1976d2;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .checkin-button {
+            background: linear-gradient(45deg, #4caf50, #66bb6a);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+
+        .ranking-list {
+            background: #f5f5f5;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .ranking-item.top1 {
+            background: linear-gradient(45deg, #ffd700, #ffeb3b);
+        }
+
+        .ranking-item.top2 {
+            background: linear-gradient(45deg, #c0c0c0, #e0e0e0);
+        }
+
+        .ranking-item.top3 {
+            background: linear-gradient(45deg, #cd7f32, #d4af37);
+        }
+
+        /* 大转盘样式 */
+        .wheel-container {
+            padding: 40px;
+            text-align: center;
+        }
+
+        .wheel {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            margin: 30px auto;
+            position: relative;
+            background: conic-gradient(
+                #ff6b6b 0deg 45deg,
+                #4ecdc4 45deg 90deg,
+                #45b7d1 90deg 135deg,
+                #96ceb4 135deg 180deg,
+                #ffeaa7 180deg 225deg,
+                #dda0dd 225deg 270deg,
+                #98d8c8 270deg 315deg,
+                #ffaaa5 315deg 360deg
+            );
+            border: 8px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .wheel::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #333;
+        }
+
+        .wheel-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .spin-button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            border-radius: 25px;
+            font-size: 1.3em;
+            cursor: pointer;
+            margin: 20px 0;
+            transform: scale(1);
+            transition: transform 0.2s;
+        }
+
+        .spin-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* 机器人面板样式 */
+        .robot-panel {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .robot-chat {
+            flex: 1;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            overflow-y: auto;
+        }
+
+        .robot-message {
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 15px;
+            margin: 10px 0;
+            max-width: 80%;
+        }
+
+        .robot-message.user {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            margin-left: auto;
+        }
+
+        .robot-commands {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .robot-cmd {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .robot-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .robot-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255,255,255,0.9);
+        }
+
+        .robot-input button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-interface {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+            
+            .modal {
+                min-width: 90%;
+                margin: 0 5%;
+            }
+        }
+
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .section-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="prototype-container">
+        <h1 class="prototype-title">🐟 摸鱼星球聊天室 - 原型图</h1>
+
+        <!-- 主界面 -->
+        <div class="prototype-section">
+            <div class="section-header">📱 主界面（摸鱼聊天室首页）</div>
+            <div class="main-interface">
+                <div class="sidebar">
+                    <div class="sidebar-item">
+                        <span class="icon">🏠</span>
+                        <span>首页</span>
+                    </div>
+                    <div class="sidebar-item">
+                        <span class="icon">🧑‍🚀</span>
+                        <span>今日昵称</span>
+                    </div>
+                    <div class="sidebar-item">
+                        <span class="icon">📊</span>
+                        <span>摸鱼排行榜</span>
+                    </div>
+                    <div class="sidebar-item">
+                        <span class="icon">🎲</span>
+                        <span>摸鱼大转盘</span>
+                    </div>
+                    <div class="sidebar-item">
+                        <span class="icon">🤖</span>
+                        <span>摸鱼机器人</span>
+                    </div>
+                </div>
+                
+                <div class="main-content">
+                    <div class="top-bar">
+                        <div class="logo">🐟 摸鱼星球</div>
+                        <div style="display: flex; align-items: center;">
+                            <div class="topic-banner">💬 今日话题：今天你装忙了吗？</div>
+                            <button class="topic-button">换一个话题</button>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-area">
+                        <div class="message">
+                            <div class="message-header">摸鱼侠007 • 09:23</div>
+                            <div>哈哈哈，老板刚刚走过来，我火速切换到工作界面 😂</div>
+                        </div>
+                        <div class="message">
+                            <div class="message-header">工位躺尸王 • 09:25</div>
+                            <div>我在开会，但是其实在看小说 📖</div>
+                        </div>
+                        <div class="message mine">
+                            <div class="message-header">我 • 09:27</div>
+                            <div>同道中人！我正在假装写代码呢 💻</div>
+                        </div>
+                        <div class="message">
+                            <div class="message-header">划水专家 • 09:30</div>
+                            <div>/joke</div>
+                        </div>
+                        <div class="message" style="background: linear-gradient(45deg, #9c27b0, #e91e63); color: white;">
+                            <div class="message-header">🤖 摸鱼机器人 • 09:30</div>
+                            <div>为什么程序员总是分不清圣诞节和万圣节？<br>因为 Oct 31 == Dec 25 😄</div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-area">
+                        <input type="text" class="input-box" placeholder="输入消息或命令（如 /joke, /rant）...">
+                        <button class="quick-button">讲个冷笑话</button>
+                        <button class="quick-button">生成请假借口</button>
+                        <button class="send-button">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 弹窗组件 -->
+        <div class="prototype-section">
+            <div class="section-header">🕵️ 匿名马甲系统（弹窗）</div>
+            <div style="padding: 40px; background: #f5f5f5; position: relative; height: 300px;">
+                <div class="modal-overlay" style="position: absolute;"></div>
+                <div class="modal">
+                    <div class="modal-title">设置你的今日昵称</div>
+                    <input type="text" class="modal-input" placeholder="输入昵称..." value="摸鱼侠007">
+                    <button class="modal-button secondary" style="width: 100%; margin-bottom: 15px;">🎲 随机生成</button>
+                    <div style="text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9em;">
+                        💡 昵称每天更新，仅今日有效
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="modal-button secondary">取消</button>
+                        <button class="modal-button primary">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 双栏布局：打卡面板和大转盘 -->
+        <div class="section-grid">
+            <!-- 摸鱼打卡面板 -->
+            <div class="prototype-section">
+                <div class="section-header">🕘 摸鱼打卡面板</div>
+                <div class="checkin-panel">
+                    <div style="font-size: 1.2em; color: #666; margin-bottom: 10px;">今日摸鱼时长</div>
+                    <div class="timer-display">02:34:18</div>
+                    <button class="checkin-button">继续摸鱼</button>
+                    
+                    <div class="ranking-list">
+                        <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 15px; color: #333;">🏆 今日摸鱼排行榜</div>
+                        <div class="ranking-item top1">
+                            <span>👑 超级摸鱼王</span>
+                            <span>05:42:33</span>
+                        </div>
+                        <div class="ranking-item top2">
+                            <span>🐟 划水专家</span>
+                            <span>04:15:22</span>
+                        </div>
+                        <div class="ranking-item top3">
+                            <span>🐢 慢动作高手</span>
+                            <span>03:58:17</span>
+                        </div>
+                        <div class="ranking-item">
+                            <span>🚀 你 (摸鱼侠007)</span>
+                            <span>02:34:18</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <div style="font-size: 1em; font-weight: bold; margin-bottom: 10px; color: #333;">📅 最近7日记录</div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            <div>昨天: 03:22:45</div>
+                            <div>前天: 02:18:33</div>
+                            <div>3天前: 04:05:12</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 摸鱼大转盘 -->
+            <div class="prototype-section">
+                <div class="section-header">🎰 摸鱼大转盘页面</div>
+                <div class="wheel-container">
+                    <div class="wheel">
+                        <div class="wheel-center">🎯</div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 20px 0; font-size: 0.8em;">
+                        <div>🏆 摸鱼王称号</div>
+                        <div>💰 +10摸鱼币</div>
+                        <div>😄 送个冷笑话</div>
+                        <div>🏖️ 帮你请半天假</div>
+                        <div>☕ 免费咖啡券</div>
+                        <div>🎪 神秘奖励</div>
+                        <div>🍀 幸运加成</div>
+                        <div>💤 摸鱼时间+1小时</div>
+                    </div>
+                    
+                    <button class="spin-button">🎲 开始抽奖</button>
+                    
+                    <div style="background: #f5f5f5; border-radius: 15px; padding: 15px; margin-top: 20px;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">🏆 最近中奖记录</div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            <div>摸鱼侠007 获得了 "今日摸鱼王称号" 🏆</div>
+                            <div>划水专家 获得了 "+10摸鱼币" 💰</div>
+                            <div>工位躺尸王 获得了 "免费咖啡券" ☕</div>
+                        </div>
+                        <div style="color: #ff9800; font-size: 0.9em; margin-top: 10px;">
+                            ⏰ 每天只能抽一次，明天再来~
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 话题栏和机器人面板 -->
+        <div class="section-grid">
+            <!-- 每日摸鱼话题栏 -->
+            <div class="prototype-section">
+                <div class="section-header">📅 每日摸鱼话题栏</div>
+                <div style="padding: 30px; text-align: center;">
+                    <div style="background: linear-gradient(45deg, #42a5f5, #ab47bc); color: white; padding: 20px; border-radius: 20px; margin-bottom: 20px;">
+                        <div style="font-size: 1.3em; margin-bottom: 10px;">💬 今日话题</div>
+                        <div style="font-size: 1.1em; margin-bottom: 15px;">如果明天离职，你最后想说什么？</div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer;">换一个话题</button>
+                            <button style="background: #4caf50; color: white; border: none; padding: 8px 15px; border-radius: 15px; cursor: pointer;">参与讨论</button>
+                        </div>
+                    </div>
+                    
+                    <div style="background: #f5f5f5; border-radius: 15px; padding: 20px;">
+                        <div style="font-weight: bold; margin-bottom: 15px; color: #333;">🔥 热门话题历史</div>
+                        <div style="text-align: left; font-size: 0.9em; color: #666;">
+                            <div style="margin: 8px 0;">• 你见过最奇葩的加班理由是什么？</div>
+                            <div style="margin: 8px 0;">• 如果可以给老板一个建议，你会说什么？</div>
+                            <div style="margin: 8px 0;">• 上班时间你做过最勇敢的事是什么？</div>
+                            <div style="margin: 8px 0;">• 形容一下你的工作状态用一个emoji</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI摸鱼机器人面板 -->
+            <div class="prototype-section">
+                <div class="section-header">🤖 AI 摸鱼机器人面板</div>
+                <div class="robot-panel">
+                    <div class="robot-chat">
+                        <div class="robot-message">
+                            嘿！我是你的摸鱼伙伴 🤖 需要什么帮助吗？
+                        </div>
+                        <div class="robot-message user">
+                            /joke
+                        </div>
+                        <div class="robot-message">
+                            😄 为什么程序员喜欢黑暗？<br>因为光明会产生bug！💡➡️🐛
+                        </div>
+                        <div class="robot-message user">
+                            给我一个请假理由
+                        </div>
+                        <div class="robot-message">
+                            🏥 建议：家里水管爆了，需要在家等维修师傅<br>成功率：⭐⭐⭐⭐☆<br>使用过的同事：还没有人用过哦～
+                        </div>
+                    </div>
+                    
+                    <div class="robot-commands">
+                        <button class="robot-cmd">/joke 冷笑话</button>
+                        <button class="robot-cmd">/rant 吐槽老板</button>
+                        <button class="robot-cmd">/excuse 请假理由</button>
+                    </div>
+                    
+                    <div class="robot-input">
+                        <input type="text" placeholder="和机器人聊天...">
+                        <button>发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设计说明 -->
+        <div class="prototype-section">
+            <div class="section-header">💡 设计说明与建议</div>
+            <div style="padding: 30px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div>
+                        <h3 style="color: #1976d2; margin-bottom: 15px;">🎨 设计风格</h3>
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 15px;">
+                            <div style="margin: 10px 0;"><strong>主题：</strong>轻松搞怪、圆润风格</div>
+                            <div style="margin: 10px 0;"><strong>配色：</strong>浅蓝#42a5f5 + 亮黄#ffa726</div>
+                            <div style="margin: 10px 0;"><strong>字体：</strong>无衬线圆体，保持可读性</div>
+                            <div style="margin: 10px 0;"><strong>布局：</strong>响应式设计，优先桌面端</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 style="color: #1976d2; margin-bottom: 15px;">🚀 功能特性</h3>
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 15px;">
+                            <div style="margin: 10px 0;"><strong>匿名系统：</strong>支持每日昵称更换</div>
+                            <div style="margin: 10px 0;"><strong>打卡系统：</strong>摸鱼时间记录与排行</div>
+                            <div style="margin: 10px 0;"><strong>娱乐功能：</strong>转盘抽奖、AI机器人</div>
+                            <div style="margin: 10px 0;"><strong>社交元素：</strong>话题讨论、表情互动</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 30px; background: linear-gradient(45deg, #e8f5e8, #fff3e0); padding: 20px; border-radius: 15px;">
+                    <h3 style="color: #2e7d32; margin-bottom: 15px;">✨ 动效建议</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div>🎰 转盘旋转动画</div>
+                        <div>💬 消息气泡弹出</div>
+                        <div>⏰ 打卡计时动效</div>
+                        <div>🎉 中奖庆祝动画</div>
+                        <div>🌊 发送按钮波纹</div>
+                        <div>🔄 话题切换过渡</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
