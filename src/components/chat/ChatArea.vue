@@ -1,5 +1,23 @@
 <template>
   <div class="chat-area">
+    <!-- 连接状态指示器 -->
+    <div class="connection-status" :class="connectionStatusClass">
+      <div class="status-indicator">
+        <span class="status-icon">{{ statusIcon }}</span>
+        <span class="status-text">{{ statusText }}</span>
+        <span class="online-count" v-if="chatStore.isConnected">
+          ({{ chatStore.onlineUserCount }}人在线)
+        </span>
+      </div>
+      <button 
+        v-if="!chatStore.isConnected && userStore.nickname" 
+        class="reconnect-btn btn btn-primary btn-sm"
+        @click="reconnect"
+      >
+        重新连接
+      </button>
+    </div>
+    
     <div class="messages-container" ref="messagesContainer">
       <MessageItem 
         v-for="message in chatStore.latestMessages"
@@ -8,12 +26,15 @@
       />
     </div>
     
-    <InputArea @send-message="handleSendMessage" />
+    <InputArea 
+      @send-message="handleSendMessage" 
+      :disabled="!chatStore.isConnected"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useUserStore } from '@/stores/user'
 import MessageItem from './MessageItem.vue'
@@ -26,41 +47,62 @@ const userStore = useUserStore()
 // 响应式数据
 const messagesContainer = ref(null)
 
+// 计算属性
+const connectionStatusClass = computed(() => {
+  return {
+    'status-connected': chatStore.isConnected,
+    'status-connecting': chatStore.connectionStatus === 'connecting',
+    'status-disconnected': chatStore.connectionStatus === 'disconnected'
+  }
+})
+
+const statusIcon = computed(() => {
+  switch (chatStore.connectionStatus) {
+    case 'connected': return '🟢'
+    case 'connecting': return '🟡'
+    default: return '🔴'
+  }
+})
+
+const statusText = computed(() => {
+  switch (chatStore.connectionStatus) {
+    case 'connected': return '已连接'
+    case 'connecting': return '连接中...'
+    default: return '未连接'
+  }
+})
+
 // 方法
 const handleSendMessage = (content, type = 'text') => {
   if (!content.trim()) return
   
-  // 获取用户昵称，如果没有则使用默认值
+  // 获取用户昵称
   const userName = userStore.nickname || '摸鱼新手'
   
-  // 如果是命令，处理机器人命令
-  if (content.startsWith('/')) {
-    chatStore.addMessage(content, userName, true, type)
-    // 添加机器人响应
-    setTimeout(() => {
-      chatStore.executeRobotCommand(content)
-    }, 500)
-    return
-  }
-  
-  // 普通消息
-  chatStore.addMessage(content, userName, true, type)
-  
-  // 模拟其他用户的回复（演示用）
-  setTimeout(() => {
-    const responses = [
-      { content: '哈哈，说得对！👍', author: '摸鱼大神' },
-      { content: '我也是这样想的 😄', author: '划水专家' },
-      { content: '有道理有道理 🎯', author: '工位躺尸王' },
-      { content: '同感同感 💯', author: '假装忙碌者' }
-    ]
-    
-    // 随机决定是否有人回复
-    if (Math.random() > 0.7) {
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      chatStore.addMessage(randomResponse.content, randomResponse.author, false, 'text')
+  if (chatStore.isConnected) {
+    // 使用WebSocket发送消息
+    chatStore.sendMessage(content, userName)
+  } else {
+    // 离线模式，仅本地显示
+    if (content.startsWith('/')) {
+      chatStore.addMessage(content, userName, true, type)
+      setTimeout(() => {
+        chatStore.executeRobotCommand(content)
+      }, 500)
+    } else {
+      chatStore.addMessage(content, userName, true, type)
     }
-  }, 2000 + Math.random() * 3000) // 2-5秒后随机回复
+  }
+}
+
+const reconnect = async () => {
+  if (userStore.nickname) {
+    try {
+      await chatStore.connectWebSocket(userStore.nickname)
+    } catch (error) {
+      console.error('重连失败:', error)
+    }
+  }
 }
 
 const scrollToBottom = () => {
@@ -75,6 +117,33 @@ const scrollToBottom = () => {
 watch(() => chatStore.messages.length, () => {
   scrollToBottom()
 })
+
+// 监听用户昵称变化，自动连接WebSocket
+watch(() => userStore.nickname, async (newNickname) => {
+  if (newNickname && !chatStore.isConnected) {
+    try {
+      await chatStore.connectWebSocket(newNickname)
+    } catch (error) {
+      console.error('自动连接失败:', error)
+    }
+  }
+})
+
+// 组件挂载时尝试连接
+onMounted(async () => {
+  if (userStore.nickname && !chatStore.isConnected) {
+    try {
+      await chatStore.connectWebSocket(userStore.nickname)
+    } catch (error) {
+      console.error('初始连接失败:', error)
+    }
+  }
+})
+
+// 组件卸载时断开连接
+onUnmounted(() => {
+  chatStore.disconnectWebSocket()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -83,6 +152,56 @@ watch(() => chatStore.messages.length, () => {
   flex-direction: column;
   height: 100%;
   background: #fafafa;
+}
+
+.connection-status {
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  padding: $spacing-sm $spacing-lg;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: $font-size-small;
+  
+  &.status-connected {
+    background: #e8f5e8;
+    border-bottom-color: #4caf50;
+  }
+  
+  &.status-connecting {
+    background: #fff3e0;
+    border-bottom-color: #ff9800;
+  }
+  
+  &.status-disconnected {
+    background: #ffebee;
+    border-bottom-color: #f44336;
+  }
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.status-icon {
+  font-size: 0.8em;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+.online-count {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.reconnect-btn {
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-size-small;
+  border-radius: $spacing-xs;
 }
 
 .messages-container {
@@ -112,6 +231,13 @@ watch(() => chatStore.messages.length, () => {
 }
 
 @media (max-width: 768px) {
+  .connection-status {
+    padding: $spacing-xs $spacing-sm;
+    flex-direction: column;
+    gap: $spacing-xs;
+    text-align: center;
+  }
+  
   .messages-container {
     padding: $spacing-sm;
   }

@@ -53,13 +53,6 @@ provide('showNicknameModal', () => {
   showNicknameModal.value = true
 })
 
-// 方法
-const handleNicknameSave = (nickname) => {
-  userStore.setNickname(nickname)
-  userStore.login(nickname)
-  showNicknameModal.value = false
-}
-
 // 生命周期
 onMounted(() => {
   // 初始化数据
@@ -68,8 +61,34 @@ onMounted(() => {
   // 如果没有昵称，显示昵称设置弹窗
   if (!userStore.nickname) {
     showNicknameModal.value = true
+  } else {
+    // 如果已有昵称，尝试连接WebSocket
+    connectToWebSocket()
   }
 })
+
+// 添加WebSocket连接方法
+const connectToWebSocket = async () => {
+  if (userStore.nickname && !chatStore.isConnected) {
+    try {
+      console.log('🔗 尝试连接WebSocket服务器...')
+      await chatStore.connectWebSocket(userStore.nickname)
+      console.log('✅ WebSocket连接成功')
+    } catch (error) {
+      console.error('❌ WebSocket连接失败:', error)
+    }
+  }
+}
+
+// 方法
+const handleNicknameSave = async (nickname) => {
+  userStore.setNickname(nickname)
+  userStore.login(nickname)
+  showNicknameModal.value = false
+  
+  // 设置昵称后立即连接WebSocket
+  await connectToWebSocket()
+}
 </script>
 
 <style scoped>

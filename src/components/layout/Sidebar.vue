@@ -12,11 +12,17 @@
         <span class="text">{{ item.label }}</span>
       </div>
     </div>
+    
+    <!-- 在线用户显示 -->
+    <div class="sidebar-footer">
+      <OnlineUsers />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, inject } from 'vue'
+import OnlineUsers from '@/components/common/OnlineUsers.vue'
 
 // 定义事件
 const emit = defineEmits(['view-change'])
@@ -56,10 +62,12 @@ const handleItemClick = (key) => {
   display: flex;
   flex-direction: column;
   box-shadow: $shadow-medium;
+  height: 100vh;
 }
 
 .sidebar-content {
   padding: $spacing-lg 0;
+  flex-shrink: 0;
 }
 
 .sidebar-item {
@@ -101,6 +109,28 @@ const handleItemClick = (key) => {
   font-weight: 500;
 }
 
+.sidebar-footer {
+  flex: 1;
+  padding: 0 $spacing-md $spacing-lg;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
@@ -126,6 +156,11 @@ const handleItemClick = (key) => {
       .text {
         font-size: $font-size-small;
       }
+    }
+    
+    .sidebar-footer {
+      padding: $spacing-sm;
+      flex: none;
     }
   }
 }

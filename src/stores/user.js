@@ -3,11 +3,11 @@ import { ref, computed } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
-  const nickname = ref('')
-  const isLoggedIn = ref(false)
-  const fishingTime = ref(0) // 摸鱼时长（秒）
-  const fishingCoins = ref(0) // 摸鱼币
-  const dailyCheckIn = ref(false) // 今日是否已打卡
+  const nickname = ref(localStorage.getItem('mofish_nickname') || '')
+  const isLoggedIn = ref(!!localStorage.getItem('mofish_nickname'))
+  const fishingTime = ref(parseInt(localStorage.getItem('mofish_fishingTime') || '0'))
+  const fishingCoins = ref(parseInt(localStorage.getItem('mofish_fishingCoins') || '100'))
+  const dailyCheckIn = ref(JSON.parse(localStorage.getItem('mofish_dailyCheckIn') || 'false'))
   
   // 计算属性
   const formattedFishingTime = computed(() => {
@@ -18,41 +18,49 @@ export const useUserStore = defineStore('user', () => {
   })
   
   // 方法
-  function setNickname(newNickname) {
-    nickname.value = newNickname
+  function setNickname(name) {
+    nickname.value = name
+    localStorage.setItem('mofish_nickname', name)
+    console.log('✅ 昵称已保存:', name)
   }
   
-  function login(userNickname) {
-    nickname.value = userNickname
+  function login(name) {
+    setNickname(name)
     isLoggedIn.value = true
+    localStorage.setItem('mofish_isLoggedIn', 'true')
   }
   
   function logout() {
     nickname.value = ''
     isLoggedIn.value = false
-    fishingTime.value = 0
-    fishingCoins.value = 0
-    dailyCheckIn.value = false
+    localStorage.removeItem('mofish_nickname')
+    localStorage.removeItem('mofish_isLoggedIn')
   }
   
   function addFishingTime(seconds) {
     fishingTime.value += seconds
+    localStorage.setItem('mofish_fishingTime', fishingTime.value.toString())
   }
   
-  function addFishingCoins(coins) {
-    fishingCoins.value += coins
+  function addFishingCoins(amount) {
+    fishingCoins.value += amount
+    localStorage.setItem('mofish_fishingCoins', fishingCoins.value.toString())
   }
   
   function setDailyCheckIn(status) {
     dailyCheckIn.value = status
+    localStorage.setItem('mofish_dailyCheckIn', JSON.stringify(status))
   }
   
   function generateRandomNickname() {
-    const prefixes = ['摸鱼侠', '划水专家', '工位躺尸王', '假装忙碌', '神秘打工人', '咸鱼王', '摸鱼大师']
-    const suffixes = ['007', '999', '666', '233', '520', '888', '123']
-    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)]
-    const randomSuffix = suffixes[Math.floor(Math.random() * suffixes.length)]
-    return `${randomPrefix}${randomSuffix}`
+    const prefixes = ['摸鱼', '划水', '偷懒', '躺平', '佛系', '咸鱼']
+    const suffixes = ['大师', '专家', '高手', '达人', '王者', '传说', '新手', '学徒']
+    const numbers = Math.floor(Math.random() * 999) + 1
+    
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)]
+    
+    return `${prefix}${suffix}${numbers}`
   }
   
   return {

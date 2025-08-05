@@ -55,6 +55,12 @@ const showHeader = computed(() => {
 })
 
 const displayAuthor = computed(() => {
+  console.log('💬 消息显示调试:', {
+    isOwn: props.message.isOwn,
+    author: props.message.author,
+    content: props.message.content.substring(0, 20) + '...'
+  })
+  
   if (props.message.isOwn) {
     return '我'
   }

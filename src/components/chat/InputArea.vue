@@ -5,28 +5,32 @@
         v-model="inputText"
         type="text" 
         class="input-box"
-        placeholder="输入消息或命令（如 /joke, /excuse, /rant）..."
+        :placeholder="inputPlaceholder"
         @keyup.enter="handleSend"
         @keydown="handleKeyDown"
         ref="inputRef"
+        :disabled="disabled"
       />
       
       <div class="quick-buttons">
         <button 
           class="quick-button btn btn-secondary"
           @click="sendQuickMessage('/joke')"
+          :disabled="disabled"
         >
           😄 冷笑话
         </button>
         <button 
           class="quick-button btn btn-secondary"
           @click="sendQuickMessage('/excuse')"
+          :disabled="disabled"
         >
           🏥 请假理由
         </button>
         <button 
           class="quick-button btn btn-secondary"
           @click="sendQuickMessage('/rant')"
+          :disabled="disabled"
         >
           😤 吐槽模式
         </button>
@@ -35,7 +39,7 @@
       <button 
         class="send-button btn btn-primary"
         @click="handleSend"
-        :disabled="!inputText.trim()"
+        :disabled="!inputText.trim() || disabled"
       >
         <span class="send-icon">📤</span>
         <span class="send-text">发送</span>
@@ -57,6 +61,14 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 
+// 定义属性
+const props = defineProps({
+  disabled: {
+    type: Boolean,
+    default: false
+  }
+})
+
 // 定义事件
 const emit = defineEmits(['send-message'])
 
@@ -66,12 +78,19 @@ const inputRef = ref(null)
 
 // 计算属性
 const showCommandHints = computed(() => {
-  return inputText.value.startsWith('/') && inputText.value.length > 1
+  return inputText.value.startsWith('/') && inputText.value.length > 1 && !props.disabled
+})
+
+const inputPlaceholder = computed(() => {
+  if (props.disabled) {
+    return '连接服务器后即可发送消息...'
+  }
+  return '输入消息或命令（如 /joke, /excuse, /rant）...'
 })
 
 // 方法
 const handleSend = () => {
-  if (!inputText.value.trim()) return
+  if (!inputText.value.trim() || props.disabled) return
   
   emit('send-message', inputText.value)
   inputText.value = ''
@@ -83,18 +102,20 @@ const handleSend = () => {
 }
 
 const sendQuickMessage = (command) => {
+  if (props.disabled) return
   emit('send-message', command)
   inputRef.value?.focus()
 }
 
 const selectCommand = (command) => {
+  if (props.disabled) return
   inputText.value = command + ' '
   inputRef.value?.focus()
 }
 
 const handleKeyDown = (event) => {
   // Ctrl+Enter 也可以发送
-  if (event.ctrlKey && event.key === 'Enter') {
+  if (event.ctrlKey && event.key === 'Enter' && !props.disabled) {
     handleSend()
   }
 }
@@ -105,6 +126,10 @@ const handleKeyDown = (event) => {
   background: white;
   border-top: 1px solid #e0e0e0;
   position: relative;
+  
+  &:has(.input-box:disabled) {
+    background: #f5f5f5;
+  }
 }
 
 .input-container {
@@ -129,6 +154,12 @@ const handleKeyDown = (event) => {
     border-color: $primary-color;
   }
   
+  &:disabled {
+    background: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+  }
+  
   &::placeholder {
     color: #999;
   }
@@ -149,8 +180,14 @@ const handleKeyDown = (event) => {
   align-items: center;
   gap: $spacing-xs;
   
-  &:hover {
+  &:not(:disabled):hover {
     transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
   }
 }
 
