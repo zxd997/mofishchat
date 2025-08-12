@@ -45,10 +45,15 @@ class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data)
-            console.log('📨 收到消息:', message.type, message)
+            console.log('📨 WebSocket原始消息:', {
+              type: message.type,
+              data: message,
+              eventData: event.data,
+              timestamp: new Date().toISOString()
+            })
             this.handleMessage(message)
           } catch (error) {
-            console.error('❌ 消息解析错误:', error)
+            console.error('❌ 消息解析错误:', error, 'Raw data:', event.data)
           }
         }
 
@@ -105,10 +110,17 @@ class WebSocketService {
 
   // 发送聊天消息
   sendChatMessage(content) {
-    this.send({
+    const messageToSend = {
       type: 'chat_message',
       content: content
+    }
+    console.log('🚀 WebSocket服务发送消息:', {
+      message: messageToSend,
+      isConnected: this.isConnected,
+      wsExists: !!this.ws,
+      readyState: this.ws ? this.ws.readyState : 'no-ws'
     })
+    this.send(messageToSend)
   }
 
   // 更换话题
@@ -140,8 +152,20 @@ class WebSocketService {
   // 处理接收到的消息
   handleMessage(message) {
     const handlers = this.messageHandlers.get(message.type) || []
-    handlers.forEach(handler => {
+    console.log('🔄 处理消息:', {
+      messageType: message.type,
+      handlersCount: handlers.length,
+      availableHandlers: Array.from(this.messageHandlers.keys()),
+      messageContent: message.content || 'no-content'
+    })
+    
+    if (handlers.length === 0) {
+      console.warn('⚠️ 没有找到消息处理器:', message.type)
+    }
+    
+    handlers.forEach((handler, index) => {
       try {
+        console.log(`🎯 调用处理器 ${index + 1}/${handlers.length} for ${message.type}`)
         handler(message)
       } catch (error) {
         console.error('❌ 消息处理器错误:', error)

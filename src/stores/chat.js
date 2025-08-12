@@ -87,33 +87,20 @@ export const useChatStore = defineStore('chat', () => {
     
     // 聊天消息
     wsService.onMessage(MESSAGE_TYPES.CHAT_MESSAGE, (message) => {
-      console.log('📨 收到WebSocket聊天消息:', {
+      console.log('📨 收到WebSocket聊天消息 - 原始数据:', message)
+      console.log('📨 消息详细信息:', {
         content: message.content,
         author: message.author,
         isOwn: message.isOwn,
         type: message.type,
         timestamp: message.timestamp,
-        id: message.id
+        id: message.id,
+        currentMessages: messages.value.length,
+        lastMessages: messages.value.slice(-3).map(m => ({content: m.content, author: m.author, isOwn: m.isOwn}))
       })
       
-      // 检查是否重复消息（简化逻辑，避免阻止其他用户消息）
-      if (message.isOwn) {
-        // 对于自己的消息，检查是否已显示（避免双重显示）
-        const recentOwnMessage = messages.value
-          .filter(msg => msg.isOwn && msg.content === message.content)
-          .slice(-1)[0] // 只检查最后一条相同内容的自己的消息
-        
-        if (recentOwnMessage) {
-          const timeDiff = Date.now() - new Date(recentOwnMessage.timestamp).getTime()
-          if (timeDiff < 3000) { // 3秒内的重复消息
-            console.log('⚠️ 检测到3秒内的重复自己消息，跳过')
-            return
-          }
-        }
-        console.log('📨 处理服务器广播的自己消息')
-      } else {
-        console.log('📨 处理其他用户的消息')
-      }
+      // 暂时移除复杂的重复检查，直接处理所有消息
+      console.log('📨 直接处理消息，无重复检查')
       
       // 使用服务器传来的isOwn字段，确保消息显示正确
       addMessage(
@@ -260,7 +247,8 @@ export const useChatStore = defineStore('chat', () => {
       author, 
       isConnected: isConnected.value,
       connectionStatus: connectionStatus.value,
-      wsServiceConnected: wsService.isConnected 
+      wsServiceConnected: wsService.isConnected,
+      wsReadyState: wsService.ws ? wsService.ws.readyState : 'no-ws'
     })
     
     if (isConnected.value) {
@@ -270,7 +258,11 @@ export const useChatStore = defineStore('chat', () => {
       // 同时发送到服务器
       try {
         wsService.sendChatMessage(content)
-        console.log('✅ 消息已发送到服务器并立即显示')
+        console.log('✅ 消息已通过WebSocket发送到服务器:', {
+          wsConnected: wsService.isConnected,
+          readyState: wsService.ws ? wsService.ws.readyState : 'no-ws',
+          messageContent: content
+        })
       } catch (error) {
         console.error('❌ 发送消息到服务器失败:', error)
       }
