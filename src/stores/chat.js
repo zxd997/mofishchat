@@ -68,8 +68,8 @@ export const useChatStore = defineStore('chat', () => {
       connectionStatus.value = 'disconnected'
       isConnected.value = false
       
-      // 如果连接失败，显示错误提示
-      addMessage('连接服务器失败，当前为离线模式。请检查网络连接或联系管理员。', '系统', false, 'system')
+      // 如果连接失败，显示错误提示（不保存到数据库）
+      addMessage('连接服务器失败，当前为离线模式。请检查网络连接或联系管理员。', '系统', false, 'system', null, null, false)
     }
   }
 
@@ -85,6 +85,15 @@ export const useChatStore = defineStore('chat', () => {
   const registerMessageHandlers = () => {
     console.log('🔧 注册WebSocket消息处理器...')
     
+    // 先清理所有现有的处理器，避免重复注册
+    const beforeClearCount = wsService.messageHandlers.size
+    console.log('🧹 清理现有消息处理器...', { 
+      beforeClear: beforeClearCount,
+      handlerTypes: Array.from(wsService.messageHandlers.keys())
+    })
+    wsService.messageHandlers.clear()
+    console.log('✅ 处理器清理完成，剩余数量:', wsService.messageHandlers.size)
+    
     // 聊天消息
     wsService.onMessage(MESSAGE_TYPES.CHAT_MESSAGE, (message) => {
       console.log('📨 收到WebSocket聊天消息 - 原始数据:', message)
@@ -99,8 +108,16 @@ export const useChatStore = defineStore('chat', () => {
         lastMessages: messages.value.slice(-3).map(m => ({content: m.content, author: m.author, isOwn: m.isOwn}))
       })
       
-      // 暂时移除复杂的重复检查，直接处理所有消息
-      console.log('📨 直接处理消息，无重复检查')
+      // 处理服务器广播的消息
+      console.log('📨 处理服务器广播消息')
+      
+      // 关键修复：只有发送者(isOwn=true)才保存到数据库，接收者不保存
+      const shouldSaveToDb = !!message.isOwn
+      console.log('💭 消息保存决策:', {
+        isOwn: message.isOwn,
+        shouldSaveToDb: shouldSaveToDb,
+        reason: shouldSaveToDb ? '发送者，需要保存' : '接收者，不保存'
+      })
       
       // 使用服务器传来的isOwn字段，确保消息显示正确
       addMessage(
@@ -109,25 +126,28 @@ export const useChatStore = defineStore('chat', () => {
         !!message.isOwn,  // 确保布尔值
         message.type || 'text', 
         message.id, 
-        message.timestamp
+        message.timestamp,
+        shouldSaveToDb  // 只有发送者才保存到数据库
       )
     })
 
-    // 系统消息
+    // 系统消息（只让第一个用户保存，避免重复）
     wsService.onMessage('system', (message) => {
       console.log('📨 收到系统消息:', message)
-      addMessage(message.content, message.author, false, 'system', message.id, message.timestamp)
+      // 系统消息不保存到数据库，因为会被所有用户收到导致重复
+      addMessage(message.content, message.author, false, 'system', message.id, message.timestamp, false)
     })
 
-    // 机器人消息
+    // 机器人消息（只让第一个用户保存，避免重复）
     wsService.onMessage('robot', (message) => {
       console.log('📨 收到机器人消息:', message)
-      addMessage(message.content, message.author, false, 'robot', message.id, message.timestamp)
+      // 机器人消息不保存到数据库，因为会被所有用户收到导致重复
+      addMessage(message.content, message.author, false, 'robot', message.id, message.timestamp, false)
       // 同时添加到机器人消息列表
       addRobotMessage(message.content, false)
     })
 
-    // 话题更换
+    // 话题更换（只让第一个用户保存，避免重复）
     wsService.onMessage(MESSAGE_TYPES.TOPIC_CHANGE, (message) => {
       console.log('📨 收到话题更换消息:', message)
       if (message.newTopic) {
@@ -140,7 +160,8 @@ export const useChatStore = defineStore('chat', () => {
         }
         currentTopic.value = message.newTopic
       }
-      addMessage(message.content, message.author, false, 'system', message.id, message.timestamp)
+      // 话题更换消息不保存到数据库，因为会被所有用户收到导致重复
+      addMessage(message.content, message.author, false, 'system', message.id, message.timestamp, false)
     })
 
     // 用户列表更新
@@ -158,11 +179,18 @@ export const useChatStore = defineStore('chat', () => {
       }
     })
     
-    console.log('✅ WebSocket消息处理器注册完成')
+    console.log('✅ WebSocket消息处理器注册完成，当前处理器数量:', {
+      chat_message: wsService.messageHandlers.get(MESSAGE_TYPES.CHAT_MESSAGE)?.length || 0,
+      system: wsService.messageHandlers.get('system')?.length || 0,
+      robot: wsService.messageHandlers.get('robot')?.length || 0,
+      topic_change: wsService.messageHandlers.get(MESSAGE_TYPES.TOPIC_CHANGE)?.length || 0,
+      user_list: wsService.messageHandlers.get(MESSAGE_TYPES.USER_LIST)?.length || 0,
+      message_history: wsService.messageHandlers.get(MESSAGE_TYPES.MESSAGE_HISTORY)?.length || 0
+    })
   }
   
   // 方法
-  async function addMessage(content, author = '', isOwn = false, type = 'text', id = null, timestamp = null) {
+  async function addMessage(content, author = '', isOwn = false, type = 'text', id = null, timestamp = null, saveToDb = true) {
     const message = {
       id: id || (Date.now() + Math.random()),
       content,
@@ -172,18 +200,21 @@ export const useChatStore = defineStore('chat', () => {
       type // 'text', 'system', 'robot'
     }
     
-    // 简化去重逻辑：只检查明确的重复情况
-    const isDuplicate = messages.value.some(existingMsg => {
+    // 改进的去重逻辑：检查最近消息避免重复
+    const recentMessages = messages.value.slice(-10) // 只检查最近10条消息
+    const isDuplicate = recentMessages.some(existingMsg => {
       // 如果有相同的ID，肯定是重复
       if (message.id && existingMsg.id === message.id) {
+        console.log('⚠️ 检测到相同ID的重复消息')
         return true
       }
       
-      // 如果是完全相同的消息（内容、作者、类型、时间戳都相同）
+      // 如果是完全相同的消息（内容、作者、类型都相同）
       if (existingMsg.content === message.content && 
           existingMsg.author === message.author && 
           existingMsg.type === message.type &&
-          existingMsg.timestamp === message.timestamp) {
+          existingMsg.isOwn === message.isOwn) {
+        console.log('⚠️ 检测到完全相同的重复消息')
         return true
       }
       
@@ -191,7 +222,12 @@ export const useChatStore = defineStore('chat', () => {
     })
     
     if (isDuplicate) {
-      console.log('⚠️ 检测到明确重复消息，跳过添加:', message)
+      console.log('⚠️ 跳过重复消息:', { 
+        content: message.content, 
+        author: message.author, 
+        type: message.type,
+        isOwn: message.isOwn 
+      })
       return
     }
     
@@ -199,8 +235,8 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(message)
     console.log('✅ 消息已添加到本地列表:', message)
     
-    // 同时保存到后端数据库（只保存非临时消息）
-    if (type !== 'temp') {
+    // 保存到后端数据库（根据saveToDb参数决定）
+    if (saveToDb && type !== 'temp') {
       try {
         const userStore = useUserStore()
         const currentUserNickname = userStore.nickname
@@ -213,20 +249,26 @@ export const useChatStore = defineStore('chat', () => {
           userId: isOwn ? currentUserNickname : null
         }
         
+        const saveId = `save_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         console.log('💾 保存消息到数据库:', {
+          saveId: saveId,
           content: messageData.content,
           author: messageData.author,
           userId: messageData.userId,
           isOwn: isOwn,
-          currentUser: currentUserNickname
+          currentUser: currentUserNickname,
+          saveToDb: saveToDb,
+          messageId: message.id
         })
         
         await chatApi.saveChatMessage(messageData)
-        console.log('✅ 消息已保存到数据库')
+        console.log('✅ 消息已保存到数据库，saveId:', saveId)
       } catch (error) {
         console.error('❌ 保存消息到数据库失败:', error)
         // 这里可以选择显示错误提示，但不影响UI显示
       }
+    } else {
+      console.log('⏭️ 跳过数据库保存:', { saveToDb, type })
     }
   }
 
@@ -252,24 +294,23 @@ export const useChatStore = defineStore('chat', () => {
     })
     
     if (isConnected.value) {
-      // 立即显示自己的消息（确保用户能看到）
-      addMessage(content, author, true, 'text')
-      
-      // 同时发送到服务器
+      // 只发送到服务器，等待服务器广播回来显示（避免重复）
       try {
         wsService.sendChatMessage(content)
-        console.log('✅ 消息已通过WebSocket发送到服务器:', {
+        console.log('✅ 消息已通过WebSocket发送到服务器，等待广播确认:', {
           wsConnected: wsService.isConnected,
           readyState: wsService.ws ? wsService.ws.readyState : 'no-ws',
           messageContent: content
         })
       } catch (error) {
         console.error('❌ 发送消息到服务器失败:', error)
+        // 发送失败时才在本地显示
+        addMessage(content, author, true, 'text', null, null, false) // 最后参数表示不保存到数据库
       }
     } else {
       console.warn('⚠️ 未连接到聊天服务器，使用离线模式')
       // 离线模式下才添加到本地
-      addMessage(content, author, true, 'text')
+      addMessage(content, author, true, 'text', null, null, false) // 离线消息不保存到数据库
     }
   }
   
@@ -313,8 +354,8 @@ export const useChatStore = defineStore('chat', () => {
       
       currentTopic.value = newTopic
       
-      // 添加系统消息
-      addMessage(`话题已更新：${newTopic}`, '系统', false, 'system')
+      // 添加系统消息（离线模式，不保存到数据库）
+      addMessage(`话题已更新：${newTopic}`, '系统', false, 'system', null, null, false)
     }
   }
   

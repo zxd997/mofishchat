@@ -156,7 +156,11 @@ class WebSocketService {
       messageType: message.type,
       handlersCount: handlers.length,
       availableHandlers: Array.from(this.messageHandlers.keys()),
-      messageContent: message.content || 'no-content'
+      messageContent: message.content || 'no-content',
+      allHandlerCounts: Array.from(this.messageHandlers.entries()).map(([type, handlerList]) => ({
+        type,
+        count: handlerList.length
+      }))
     })
     
     if (handlers.length === 0) {
