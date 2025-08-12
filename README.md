@@ -27,12 +27,20 @@
 
 ## 🛠️ 技术栈
 
+### 前端
 - **前端框架**: Vue 3 (Composition API)
 - **状态管理**: Pinia
 - **路由**: Vue Router 4
 - **构建工具**: Vite
 - **样式**: SCSS + CSS变量
 - **工具库**: @vueuse/core, dayjs
+- **实时通信**: WebSocket API
+
+### 后端
+- **后端框架**: Spring Boot 2.7.18
+- **数据库**: MySQL 8.0 + MyBatis Plus 3.5.7
+- **实时通信**: Spring WebSocket
+- **API设计**: RESTful API
 
 ## 📁 项目结构
 
@@ -60,9 +68,14 @@ src/
 │   │   └── TopicPanel.vue
 │   └── common/         # 通用组件
 │       └── WelcomePanel.vue
+├── config/             # 配置文件
+│   └── websocket.js    # WebSocket连接配置
+├── services/           # API服务
+│   ├── websocket.js    # WebSocket客户端
+│   └── chatApi.js      # 聊天API服务
 ├── stores/             # 状态管理
 │   ├── user.js         # 用户状态
-│   ├── chat.js         # 聊天状态
+│   ├── chat.js         # 聊天状态（含持久化）
 │   └── game.js         # 游戏状态
 ├── styles/             # 样式文件
 │   ├── main.scss       # 全局样式
@@ -79,18 +92,37 @@ src/
 ## 🚀 快速开始
 
 ### 环境要求
-- Node.js >= 16.0.0
-- npm >= 7.0.0
+- **前端**: Node.js >= 16.0.0, npm >= 7.0.0
+- **后端**: Java 17, Maven 3.6+, MySQL 8.0+
 
-### 安装依赖
+### 1. 后端启动
 ```bash
-npm install
+# 进入后端目录
+cd mofishchat-backend
+
+# 配置数据库
+# 编辑 src/main/resources/application.properties
+# 修改数据库连接信息
+
+# 启动后端服务
+mvn spring-boot:run
 ```
 
-### 开发模式
+### 2. 前端启动
 ```bash
+# 进入前端目录
+cd mofishchat
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
 npm run dev
 ```
+
+### 验证服务
+- 后端健康检查: http://localhost:8081/api/chat/health
+- 前端页面: http://localhost:3000
 
 ### 构建项目
 ```bash
@@ -139,10 +171,13 @@ npm run preview
 ## 🎮 功能演示
 
 ### 聊天功能
+- 实时多用户聊天，WebSocket通信
+- 消息持久化存储，刷新不丢失
 - 支持文本消息、表情符号
 - 命令系统：`/joke`, `/excuse`, `/rant`
 - 实时消息滚动和时间戳
-- 用户头像和昵称显示
+- 在线用户列表显示
+- 用户加入/离开通知
 
 ### 打卡系统
 - 一键开始/暂停摸鱼计时
@@ -172,8 +207,12 @@ npm run preview
 
 ## 🔮 未来规划
 
-- [ ] WebSocket实时通信
+- [x] WebSocket实时通信 ✅
+- [x] 消息持久化存储 ✅
 - [ ] 用户注册登录系统
+- [ ] 私聊功能
+- [ ] 消息加密
+- [ ] 文件分享功能
 - [ ] 更多游戏和互动功能
 - [ ] 移动端App开发
 - [ ] 社区功能扩展

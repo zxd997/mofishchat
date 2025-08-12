@@ -129,8 +129,16 @@ watch(() => userStore.nickname, async (newNickname) => {
   }
 })
 
-// 组件挂载时尝试连接
+// 组件挂载时加载历史消息并尝试连接
 onMounted(async () => {
+  // 首先加载数据库中的历史消息
+  try {
+    await chatStore.loadMessagesFromDatabase()
+  } catch (error) {
+    console.error('加载历史消息失败:', error)
+  }
+
+  // 然后尝试连接WebSocket
   if (userStore.nickname && !chatStore.isConnected) {
     try {
       await chatStore.connectWebSocket(userStore.nickname)

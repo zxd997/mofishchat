@@ -1,13 +1,16 @@
+import { WS_CONFIG } from '@/config/websocket'
+
 // WebSocket客户端服务
 class WebSocketService {
   constructor() {
     this.ws = null
     this.isConnected = false
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = 5
-    this.reconnectDelay = 1000
+    this.maxReconnectAttempts = WS_CONFIG.CONNECTION.MAX_RECONNECT_ATTEMPTS
+    this.reconnectDelay = WS_CONFIG.CONNECTION.RECONNECT_DELAY
+    this.connectionTimeout = WS_CONFIG.CONNECTION.CONNECTION_TIMEOUT
     this.messageHandlers = new Map()
-    this.url = 'ws://localhost:8080'
+    this.url = WS_CONFIG.CHAT_URL
   }
 
   // 连接WebSocket
@@ -22,7 +25,7 @@ class WebSocketService {
           console.error('❌ WebSocket连接超时')
           this.ws.close()
           reject(new Error('连接超时'))
-        }, 5000) // 5秒超时
+        }, this.connectionTimeout)
 
         this.ws.onopen = () => {
           clearTimeout(timeout)

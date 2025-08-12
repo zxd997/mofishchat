@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import dayjs from 'dayjs'
 import { wsService, MESSAGE_TYPES } from '@/services/websocket'
+import chatApi from '@/services/chatApi'
+import { useUserStore } from '@/stores/user'
 
 export const useChatStore = defineStore('chat', () => {
   // 状态
@@ -30,16 +32,37 @@ export const useChatStore = defineStore('chat', () => {
   // WebSocket连接
   const connectWebSocket = async (nickname) => {
     try {
-      console.log('🔄 开始连接WebSocket服务器...', { nickname, url: 'ws://localhost:8080' })
+      console.log('🔄 开始连接WebSocket服务器...', { 
+        nickname, 
+        url: wsService.url,
+        currentStatus: connectionStatus.value,
+        timestamp: new Date().toISOString()
+      })
+      
       connectionStatus.value = 'connecting'
+      
+      // 先注册消息处理器
+      registerMessageHandlers()
+      
       await wsService.connect(nickname)
       isConnected.value = true
       connectionStatus.value = 'connected'
       
-      // 注册消息处理器
-      registerMessageHandlers()
+      console.log('✅ 聊天室连接成功', { 
+        nickname, 
+        onlineUsers: onlineUsers.value.length,
+        connectionId: wsService.ws ? 'active' : 'inactive'
+      })
       
-      console.log('✅ 聊天室连接成功', { nickname, onlineUsers: onlineUsers.value.length })
+      // 发送测试消息确认连接
+      setTimeout(() => {
+        console.log('🔔 WebSocket连接状态检查:', {
+          isConnected: isConnected.value,
+          wsReady: wsService.isConnected,
+          readyState: wsService.ws ? wsService.ws.readyState : 'no-ws'
+        })
+      }, 1000)
+      
     } catch (error) {
       console.error('❌ WebSocket连接失败:', error)
       connectionStatus.value = 'disconnected'
@@ -64,9 +87,43 @@ export const useChatStore = defineStore('chat', () => {
     
     // 聊天消息
     wsService.onMessage(MESSAGE_TYPES.CHAT_MESSAGE, (message) => {
-      console.log('📨 收到聊天消息:', message)
-      // 使用服务器传来的isOwn字段，而不是硬编码为false
-      addMessage(message.content, message.author, message.isOwn || false, message.type, message.id, message.timestamp)
+      console.log('📨 收到WebSocket聊天消息:', {
+        content: message.content,
+        author: message.author,
+        isOwn: message.isOwn,
+        type: message.type,
+        timestamp: message.timestamp,
+        id: message.id
+      })
+      
+      // 检查是否重复消息（简化逻辑，避免阻止其他用户消息）
+      if (message.isOwn) {
+        // 对于自己的消息，检查是否已显示（避免双重显示）
+        const recentOwnMessage = messages.value
+          .filter(msg => msg.isOwn && msg.content === message.content)
+          .slice(-1)[0] // 只检查最后一条相同内容的自己的消息
+        
+        if (recentOwnMessage) {
+          const timeDiff = Date.now() - new Date(recentOwnMessage.timestamp).getTime()
+          if (timeDiff < 3000) { // 3秒内的重复消息
+            console.log('⚠️ 检测到3秒内的重复自己消息，跳过')
+            return
+          }
+        }
+        console.log('📨 处理服务器广播的自己消息')
+      } else {
+        console.log('📨 处理其他用户的消息')
+      }
+      
+      // 使用服务器传来的isOwn字段，确保消息显示正确
+      addMessage(
+        message.content, 
+        message.author, 
+        !!message.isOwn,  // 确保布尔值
+        message.type || 'text', 
+        message.id, 
+        message.timestamp
+      )
     })
 
     // 系统消息
@@ -118,7 +175,7 @@ export const useChatStore = defineStore('chat', () => {
   }
   
   // 方法
-  function addMessage(content, author = '', isOwn = false, type = 'text', id = null, timestamp = null) {
+  async function addMessage(content, author = '', isOwn = false, type = 'text', id = null, timestamp = null) {
     const message = {
       id: id || (Date.now() + Math.random()),
       content,
@@ -127,18 +184,98 @@ export const useChatStore = defineStore('chat', () => {
       isOwn,
       type // 'text', 'system', 'robot'
     }
+    
+    // 简化去重逻辑：只检查明确的重复情况
+    const isDuplicate = messages.value.some(existingMsg => {
+      // 如果有相同的ID，肯定是重复
+      if (message.id && existingMsg.id === message.id) {
+        return true
+      }
+      
+      // 如果是完全相同的消息（内容、作者、类型、时间戳都相同）
+      if (existingMsg.content === message.content && 
+          existingMsg.author === message.author && 
+          existingMsg.type === message.type &&
+          existingMsg.timestamp === message.timestamp) {
+        return true
+      }
+      
+      return false
+    })
+    
+    if (isDuplicate) {
+      console.log('⚠️ 检测到明确重复消息，跳过添加:', message)
+      return
+    }
+    
+    // 立即添加到本地消息列表（UI 立即更新）
     messages.value.push(message)
+    console.log('✅ 消息已添加到本地列表:', message)
+    
+    // 同时保存到后端数据库（只保存非临时消息）
+    if (type !== 'temp') {
+      try {
+        const userStore = useUserStore()
+        const currentUserNickname = userStore.nickname
+        
+        const messageData = {
+          content,
+          author: message.author,
+          type: getMessageTypeCode(type),
+          // 修复：使用当前登录用户的昵称作为userId（仅当是自己的消息时）
+          userId: isOwn ? currentUserNickname : null
+        }
+        
+        console.log('💾 保存消息到数据库:', {
+          content: messageData.content,
+          author: messageData.author,
+          userId: messageData.userId,
+          isOwn: isOwn,
+          currentUser: currentUserNickname
+        })
+        
+        await chatApi.saveChatMessage(messageData)
+        console.log('✅ 消息已保存到数据库')
+      } catch (error) {
+        console.error('❌ 保存消息到数据库失败:', error)
+        // 这里可以选择显示错误提示，但不影响UI显示
+      }
+    }
+  }
+
+  // 转换消息类型为数字代码
+  function getMessageTypeCode(type) {
+    switch (type) {
+      case 'text': return 0
+      case 'system': return 1
+      case 'robot': return 2
+      default: return 0
+    }
   }
 
   // 发送消息（通过WebSocket）
   function sendMessage(content, author) {
+    console.log('📤 准备发送消息:', { 
+      content, 
+      author, 
+      isConnected: isConnected.value,
+      connectionStatus: connectionStatus.value,
+      wsServiceConnected: wsService.isConnected 
+    })
+    
     if (isConnected.value) {
-      console.log('📤 发送消息:', { content, author })
-      wsService.sendChatMessage(content)
-      // 注意：不要在这里立即添加消息到本地，等待服务器广播回来
-      // 这样可以确保消息的一致性和顺序
+      // 立即显示自己的消息（确保用户能看到）
+      addMessage(content, author, true, 'text')
+      
+      // 同时发送到服务器
+      try {
+        wsService.sendChatMessage(content)
+        console.log('✅ 消息已发送到服务器并立即显示')
+      } catch (error) {
+        console.error('❌ 发送消息到服务器失败:', error)
+      }
     } else {
-      console.warn('⚠️ 未连接到聊天服务器')
+      console.warn('⚠️ 未连接到聊天服务器，使用离线模式')
       // 离线模式下才添加到本地
       addMessage(content, author, true, 'text')
     }
@@ -264,6 +401,68 @@ export const useChatStore = defineStore('chat', () => {
       }, 1000)
     }
   }
+
+  // 从数据库加载消息历史
+  async function loadMessagesFromDatabase() {
+    try {
+      console.log('🔄 正在从数据库加载消息历史...')
+      const userStore = useUserStore()
+      const currentUserNickname = userStore.nickname
+      const messagesFromDb = await chatApi.getLatestMessages(50)
+      
+      if (messagesFromDb && messagesFromDb.length > 0) {
+        // 转换数据库消息格式为前端格式
+        const convertedMessages = messagesFromDb.map(msg => {
+          // 修复：根据userId字段判断是否为当前用户的消息
+          const isOwn = msg.userId === currentUserNickname
+          
+          console.log('🔄 加载消息:', {
+            content: msg.content,
+            author: msg.author,
+            userId: msg.userId,
+            currentUser: currentUserNickname,
+            isOwn: isOwn
+          })
+          
+          return {
+            id: msg.id,
+            content: msg.content,
+            author: msg.author || '匿名用户',
+            timestamp: msg.timestamp,
+            // 修复：根据userId字段判断，而不是author
+            isOwn: isOwn,
+            type: getMessageTypeString(msg.type)
+          }
+        })
+        
+        // 替换当前消息列表
+        messages.value = convertedMessages
+        console.log(`✅ 成功加载 ${convertedMessages.length} 条消息历史`, {
+          currentUser: currentUserNickname,
+          ownMessages: convertedMessages.filter(m => m.isOwn).length,
+          otherMessages: convertedMessages.filter(m => !m.isOwn).length
+        })
+      } else {
+        console.log('📝 没有找到历史消息，使用默认消息')
+        // 如果没有历史消息，可以添加一些默认消息
+        initializeMessages()
+      }
+    } catch (error) {
+      console.error('❌ 加载消息历史失败:', error)
+      // 如果加载失败，使用默认消息
+      initializeMessages()
+    }
+  }
+
+  // 转换数字代码为消息类型字符串
+  function getMessageTypeString(typeCode) {
+    switch (typeCode) {
+      case 0: return 'text'
+      case 1: return 'system'
+      case 2: return 'robot'
+      default: return 'text'
+    }
+  }
   
   return {
     // 状态
@@ -285,6 +484,7 @@ export const useChatStore = defineStore('chat', () => {
     addRobotMessage,
     changeTopic,
     initializeMessages,
-    executeRobotCommand
+    executeRobotCommand,
+    loadMessagesFromDatabase
   }
 }) 
